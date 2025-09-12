@@ -39,23 +39,17 @@ builder.Services.AddSwaggerGen();
 //     options.FallbackPolicy = options.DefaultPolicy;
 // });
 
-builder.Services.AddCors(options =>
-{
-    options.AddDefaultPolicy(policy =>
-    {
-        // For production, specify the allowed origins with .WithOrigins("https://example.com")
-        policy.SetIsOriginAllowed(origin =>
-        {
-            if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
-                return false;
-            // Accept localhost and IP loopback addresses
-            return uri.IsLoopback || uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase);
-        })
-        .AllowAnyHeader()
-        .AllowAnyMethod()
-        .AllowCredentials();
-    });
-});
+// builder.Services.AddCors(options =>
+// {
+//     options.AddDefaultPolicy(policy =>
+//     {
+//         // For production, specify the allowed origins with .WithOrigins("https://example.com")
+//         policy.WithOrigins("http://localhost:3000") // Adjust this to your client app url
+//         .AllowAnyHeader()
+//         .AllowAnyMethod()
+//         .AllowCredentials();
+//     });
+// });
 
 var app = builder.Build();
 
@@ -87,15 +81,15 @@ else
 app.UseHttpsRedirection();
 
 // Enable CORS
-app.UseCors();
+// app.UseCors();
 
 // Uncomment the following lines to enable windows authentication and authorization
 // app.UseAuthentication();
 // app.UseAuthorization();
 
 // Enable SingalR hubs for real-time communication
-app.MapHub<MessageHub>("/messagehub");
-app.MapHub<OrderHub>("/orderhub", options =>
+app.MapHub<MessageHub>("/hub/message");
+app.MapHub<OrderHub>("/hub/order", options =>
 {
     options.AllowStatefulReconnects = true;
 });

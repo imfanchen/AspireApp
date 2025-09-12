@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { DataTable } from "@/components/data-table";
 import { getEmployees } from "@/api/employees";
 import { type ColumnDef } from "@tanstack/react-table";
-import { type Employee } from "@/models/employee";
+import { type Employee } from "@/types/employee";
 
 export const Route = createFileRoute("/employees")({
   component: EmployeesComponent,

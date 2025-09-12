@@ -2,13 +2,13 @@
 
 import * as React from "react";
 import {
-  Sailboat,
   FileUser,
   LifeBuoy,
   PackageSearch,
   ShoppingCart,
   Send,
   Users,
+  MessageSquareMore
 } from "lucide-react";
 
 import { NavigationMain } from "@/components/layouts/navigation-main";
@@ -59,6 +59,11 @@ const data = {
         },
       ],
     },
+    {
+      title: "Chat",
+      url: "/chat",
+      icon: MessageSquareMore,
+    }
   ],
   navSecondary: [
     {
@@ -83,7 +88,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenuButton size="lg" asChild>
               <a href="#">
                 <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                  <Sailboat className="size-4" />
+                  <img src="/logo-white.svg" alt="logo" className="size-6" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">

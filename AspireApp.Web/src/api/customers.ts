@@ -1,5 +1,5 @@
-import axios from 'axios';
-import { type Customer } from '@/models/customer';
+import axios from "axios";
+import { type Customer } from "@/types/customer";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -8,7 +8,7 @@ export async function getCustomers(): Promise<Customer[]> {
     const response = await axios.get<Customer[]>(`${API_URL}/customers`);
     return response.data;
   } catch (error) {
-    console.error('Error fetching customers:', error);
+    console.error("Error fetching customers:", error);
     throw error;
   }
 }
@@ -23,19 +23,30 @@ export async function getCustomerById(id: number): Promise<Customer> {
   }
 }
 
-export async function createCustomer(customer: Omit<Customer, 'customerId'>): Promise<Customer> {
+export async function createCustomer(
+  customer: Omit<Customer, "customerId">
+): Promise<Customer> {
   try {
-    const response = await axios.post<Customer>(`${API_URL}/customers`, customer);
+    const response = await axios.post<Customer>(
+      `${API_URL}/customers`,
+      customer
+    );
     return response.data;
   } catch (error) {
-    console.error('Error creating customer:', error);
+    console.error("Error creating customer:", error);
     throw error;
   }
 }
 
-export async function updateCustomer(id: number, customer: Customer): Promise<Customer> {
+export async function updateCustomer(
+  id: number,
+  customer: Customer
+): Promise<Customer> {
   try {
-    const response = await axios.put<Customer>(`${API_URL}/customers/${id}`, customer);
+    const response = await axios.put<Customer>(
+      `${API_URL}/customers/${id}`,
+      customer
+    );
     return response.data;
   } catch (error) {
     console.error(`Error updating customer with ID ${id}:`, error);

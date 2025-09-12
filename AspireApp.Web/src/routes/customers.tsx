@@ -7,7 +7,12 @@ import {
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { ArrowUpDown, Plus, Pencil, Trash } from "lucide-react";
-import { createCustomer, getCustomers, updateCustomer, deleteCustomer } from "@/api/customers";
+import {
+  createCustomer,
+  getCustomers,
+  updateCustomer,
+  deleteCustomer,
+} from "@/api/customers";
 import { getOrdersByCustomerId, createOrder } from "@/api/orders";
 import { getProducts } from "@/api/products";
 import { getEmployees } from "@/api/employees";
@@ -41,8 +46,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { type ColumnDef } from "@tanstack/react-table";
-import { type Customer } from "@/models/customer";
-import { type Order } from "@/models/order";
+import { type Customer } from "@/types/customer";
+import { type Order } from "@/types/order";
 import { useState, useEffect } from "react";
 import { Label } from "@radix-ui/react-label";
 import { Input } from "@/components/ui/input";
@@ -92,10 +97,16 @@ function CustomersComponent() {
 
   const [isDeleteCustomerDialogOpen, setIsDeleteCustomerDialogOpen] =
     useState(false);
-  const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(null);
+  const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(
+    null
+  );
 
   const [isCreateOrderDialogOpen, setIsCreateOrderDialogOpen] = useState(false);
-  const [newOrder, setNewOrder] = useState<{productId: string, salesPersonId: number | null, quantity: number}>({productId: "", salesPersonId: null, quantity: 0});
+  const [newOrder, setNewOrder] = useState<{
+    productId: string;
+    salesPersonId: number | null;
+    quantity: number;
+  }>({ productId: "", salesPersonId: null, quantity: 0 });
 
   const customersQuery = useQuery(customersQueryOptions);
   const productsQuery = useQuery(productsQueryOptions);
@@ -143,9 +154,11 @@ function CustomersComponent() {
   const createOrderMutation = useMutation({
     mutationFn: createOrder,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["orders", selectedCustomerId] });
+      queryClient.invalidateQueries({
+        queryKey: ["orders", selectedCustomerId],
+      });
       setIsCreateOrderDialogOpen(false);
-      setNewOrder({productId: "", salesPersonId: null, quantity: 0});
+      setNewOrder({ productId: "", salesPersonId: null, quantity: 0 });
       toast.success("Order created successfully");
     },
   });
@@ -555,14 +568,19 @@ function CustomersComponent() {
                 Product
               </Label>
               <Select
-                onValueChange={(value) => setNewOrder({ ...newOrder, productId: value })}
+                onValueChange={(value) =>
+                  setNewOrder({ ...newOrder, productId: value })
+                }
               >
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select a product" />
                 </SelectTrigger>
                 <SelectContent>
                   {products.map((product) => (
-                    <SelectItem key={product.productId} value={product.productId}>
+                    <SelectItem
+                      key={product.productId}
+                      value={product.productId}
+                    >
                       {product.name}
                     </SelectItem>
                   ))}
@@ -574,14 +592,19 @@ function CustomersComponent() {
                 Sales Person
               </Label>
               <Select
-                onValueChange={(value) => setNewOrder({ ...newOrder, salesPersonId: parseInt(value) })}
+                onValueChange={(value) =>
+                  setNewOrder({ ...newOrder, salesPersonId: parseInt(value) })
+                }
               >
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select a sales person" />
                 </SelectTrigger>
                 <SelectContent>
                   {employees.map((employee) => (
-                    <SelectItem key={employee.employeeId} value={employee.employeeId.toString()}>
+                    <SelectItem
+                      key={employee.employeeId}
+                      value={employee.employeeId.toString()}
+                    >
                       {employee.firstName} {employee.lastName}
                     </SelectItem>
                   ))}
@@ -597,7 +620,10 @@ function CustomersComponent() {
                 type="number"
                 value={newOrder.quantity}
                 onChange={(e) =>
-                  setNewOrder({ ...newOrder, quantity: parseInt(e.target.value) })
+                  setNewOrder({
+                    ...newOrder,
+                    quantity: parseInt(e.target.value),
+                  })
                 }
                 className="col-span-3"
               />

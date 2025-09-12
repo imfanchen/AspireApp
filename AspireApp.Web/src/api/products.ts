@@ -1,5 +1,5 @@
-import axios from 'axios';
-import { type Product } from '@/models/product';
+import axios from "axios";
+import { type Product } from "@/types/product";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -8,7 +8,7 @@ export async function getProducts(): Promise<Product[]> {
     const response = await axios.get<Product[]>(`${API_URL}/products`);
     return response.data;
   } catch (error) {
-    console.error('Error fetching products:', error);
+    console.error("Error fetching products:", error);
     throw error;
   }
 }
@@ -23,19 +23,27 @@ export async function getProductById(id: string): Promise<Product> {
   }
 }
 
-export async function createProduct(product: Omit<Product, 'productId'>): Promise<Product> {
+export async function createProduct(
+  product: Omit<Product, "productId">
+): Promise<Product> {
   try {
     const response = await axios.post<Product>(`${API_URL}/products`, product);
     return response.data;
   } catch (error) {
-    console.error('Error creating product:', error);
+    console.error("Error creating product:", error);
     throw error;
   }
 }
 
-export async function updateProduct(id: string, product: Product): Promise<Product> {
+export async function updateProduct(
+  id: string,
+  product: Product
+): Promise<Product> {
   try {
-    const response = await axios.put<Product>(`${API_URL}/products/${id}`, product);
+    const response = await axios.put<Product>(
+      `${API_URL}/products/${id}`,
+      product
+    );
     return response.data;
   } catch (error) {
     console.error(`Error updating product with ID ${id}:`, error);
