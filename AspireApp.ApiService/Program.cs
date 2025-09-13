@@ -88,8 +88,9 @@ app.UseHttpsRedirection();
 // app.UseAuthorization();
 
 // Enable SingalR hubs for real-time communication
-app.MapHub<MessageHub>("/hub/message");
-app.MapHub<OrderHub>("/hub/order", options =>
+app.MapHub<CustomerHub>("/hub/customer");
+app.MapHub<OrderHub>("/hub/order");
+app.MapHub<MessageHub>("/hub/message", options =>
 {
     options.AllowStatefulReconnects = true;
 });

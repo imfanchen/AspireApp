@@ -1,15 +1,18 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 
 [ApiController]
 [Route("api/[controller]")]
 public class CustomersController : ControllerBase
 {
     private readonly CustomerRepository _repository;
+    private readonly IHubContext<CustomerHub> _hubContext;
     private readonly ILogger<CustomersController> _logger;
 
-    public CustomersController(CustomerRepository repository, ILogger<CustomersController> logger)
+    public CustomersController(CustomerRepository repository, IHubContext<CustomerHub> hubContext, ILogger<CustomersController> logger)
     {
         _repository = repository;
+        _hubContext = hubContext;
         _logger = logger;
     }
 
@@ -35,6 +38,7 @@ public class CustomersController : ControllerBase
     {
         CustomerEntity entity = model.AsEntity();
         await _repository.CreateCustomerAsync(entity);
+        await _hubContext.Clients.All.SendAsync(CustomerHub.CustomerCreated, entity.CustomerId);
         CustomerModel value = entity.AsModel();
         return CreatedAtAction(nameof(Get), new { id = entity.CustomerId }, model);
     }
@@ -49,6 +53,7 @@ public class CustomersController : ControllerBase
         entity.MiddleInitial = model.MiddleInitial;
         entity.LastName = model.LastName;
         await _repository.UpdateCustomerAsync(entity);
+        await _hubContext.Clients.All.SendAsync(CustomerHub.CustomerUpdated, entity.CustomerId);
         return NoContent();
     }
 
@@ -58,6 +63,9 @@ public class CustomersController : ControllerBase
         CustomerEntity? entity = await _repository.GetCustomerAsync(id);
         if (entity == null) return NotFound();
         await _repository.DeleteCustomerAsync(id);
+        await _hubContext.Clients.All.SendAsync(CustomerHub.CustomerDeleted, id);
         return NoContent();
     }
 }
+
+

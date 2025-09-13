@@ -1,5 +1,5 @@
-import { queryOptions, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { DataTable } from "@/components/data-table";
 import { getEmployees } from "@/api/employees";
 import { type ColumnDef } from "@tanstack/react-table";

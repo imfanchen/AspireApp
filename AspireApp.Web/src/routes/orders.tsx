@@ -1,10 +1,13 @@
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { HubConnectionBuilder } from "@microsoft/signalr";
 import { createFileRoute } from "@tanstack/react-router";
+import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DataTable } from "@/components/data-table";
 import { getOrders } from "@/api/orders";
 import { getProducts } from "@/api/products";
 import { getCustomers } from "@/api/customers";
 import { getEmployees } from "@/api/employees";
+import { SignalREvents } from "@/lib/constants";
 import { type ColumnDef } from "@tanstack/react-table";
 
 export const Route = createFileRoute("/orders")({
@@ -33,26 +36,55 @@ const employeesQueryOptions = queryOptions({
   queryFn: getEmployees,
 });
 
-interface OrderRow {
-  orderId: string;
-  productName: string;
-  customerFullName: string;
-  salesPersonFullName: string;
-  productPrice: number;
-  quantity: number;
-  orderDollarAmount: number;
-}
-
 function OrdersComponent() {
+  const queryClient = useQueryClient();
   const ordersQuery = useQuery(ordersQueryOptions);
   const productsQuery = useQuery(productsQueryOptions);
   const customersQuery = useQuery(customersQueryOptions);
   const employeesQuery = useQuery(employeesQueryOptions);
 
+  useEffect(() => {
+    const connection = new HubConnectionBuilder()
+      .withUrl("/hub/order")
+      .withAutomaticReconnect()
+      .build();
+
+    connection
+      .start()
+      .then(() => console.log("SignalR connection started"))
+      .catch((err) => console.error("SignalR connection error: ", err));
+
+    connection.on(SignalREvents.OrderCreated, () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    });
+
+    connection.on(SignalREvents.OrderUpdated, () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    });
+
+    connection.on(SignalREvents.OrderDeleted, () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    });
+
+    return () => {
+      connection.stop();
+    };
+  }, [queryClient]);
+
   const orders = ordersQuery.data ?? [];
   const products = productsQuery.data ?? [];
   const customers = customersQuery.data ?? [];
   const employees = employeesQuery.data ?? [];
+
+  interface OrderRow {
+    orderId: string;
+    productName: string;
+    customerName: string;
+    salesPersonName: string;
+    price: number;
+    quantity: number;
+    total: number;
+  }
 
   const orderData: OrderRow[] = orders.map((order) => {
     const product = products.find((p) => p.productId === order.productId);
@@ -61,68 +93,69 @@ function OrdersComponent() {
       (e) => e.employeeId === order.salesPersonId
     );
 
-    const productPrice = product?.price ?? 0;
+    const price = product?.price ?? 0;
     const quantity = order.quantity;
-    const orderDollarAmount = productPrice * quantity;
+    const total = price * quantity;
 
     return {
       orderId: order.orderId,
       productName: product?.name ?? "",
-      customerFullName: customer
+      customerName: customer
         ? `${customer.firstName} ${customer.lastName}`
         : "",
-      salesPersonFullName: employee
+      salesPersonName: employee
         ? `${employee.firstName} ${employee.lastName}`
         : "",
-      productPrice: productPrice,
+      price: price,
       quantity: quantity,
-      orderDollarAmount: orderDollarAmount,
+      total: total,
     };
   });
 
-  const columns: ColumnDef<OrderRow>[] = [
+  const orderColumns: ColumnDef<OrderRow>[] = [
     {
       accessorKey: "orderId",
       header: "Order ID",
     },
     {
       accessorKey: "productName",
-      header: "Product Name",
+      header: "Product",
     },
     {
-      accessorKey: "customerFullName",
+      accessorKey: "customerName",
       header: "Customer",
     },
     {
-      accessorKey: "salesPersonFullName",
+      accessorKey: "salesPersonName",
       header: "Sales Person",
     },
     {
-      accessorKey: "productPrice",
-      header: "Price",
+      accessorKey: "price",
+      header: () => <div className="text-right">Price</div>,
       cell: ({ cell }) => {
         const amount = parseFloat(cell.getValue() as string);
         const formatted = new Intl.NumberFormat("en-US", {
           style: "currency",
           currency: "USD",
         }).format(amount);
-        return <div className="text-right font-medium">{formatted}</div>;
+        return <div className="text-right">{formatted}</div>;
       },
     },
     {
       accessorKey: "quantity",
-      header: "Quantity",
+      header: () => <div className="text-right">Quantity</div>,
+      cell: ({ cell }) => <div className="text-right">{cell.getValue() as string}</div>,
     },
     {
-      accessorKey: "orderDollarAmount",
-      header: "Amount",
+      accessorKey: "total",
+      header: () => <div className="text-right">Total</div>,
       cell: ({ cell }) => {
         const amount = parseFloat(cell.getValue() as string);
         const formatted = new Intl.NumberFormat("en-US", {
           style: "currency",
           currency: "USD",
         }).format(amount);
-        return <div className="text-right font-medium">{formatted}</div>;
+        return <div className="text-right">{formatted}</div>;
       },
     },
   ];
@@ -131,7 +164,7 @@ function OrdersComponent() {
     <>
       <div className="p-4">
         <h1 className="text-2xl font-bold mb-4">Orders</h1>
-        <DataTable data={orderData} columns={columns} filter="orderId" />
+        <DataTable data={orderData} columns={orderColumns} filter="orderId" />
       </div>
     </>
   );

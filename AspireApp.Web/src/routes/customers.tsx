@@ -1,3 +1,6 @@
+// TODO: Add validation to the forms (consider tanstack form vs zod?)
+import { useState, useEffect } from "react";
+import { HubConnectionBuilder } from "@microsoft/signalr";
 import {
   queryOptions,
   useMutation,
@@ -13,13 +16,13 @@ import {
   updateCustomer,
   deleteCustomer,
 } from "@/api/customers";
-import { getOrdersByCustomerId, createOrder } from "@/api/orders";
 import { getProducts } from "@/api/products";
 import { getEmployees } from "@/api/employees";
+import { getOrdersByCustomerId, createOrder } from "@/api/orders";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Progress } from "@/components/ui/progress";
-import { DataTable } from "@/components/data-table";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -45,12 +48,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { DataTable } from "@/components/data-table";
+import { SignalREvents } from "@/lib/constants";
 import { type ColumnDef } from "@tanstack/react-table";
 import { type Customer } from "@/types/customer";
-import { type Order } from "@/types/order";
-import { useState, useEffect } from "react";
-import { Label } from "@radix-ui/react-label";
-import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/customers")({
   component: CustomersComponent,
@@ -73,10 +74,37 @@ const employeesQueryOptions = queryOptions({
   queryFn: getEmployees,
 });
 
+
 function CustomersComponent() {
   const queryClient = useQueryClient();
 
-  const [loadingProgress, setLoadingProgress] = useState(0);
+  useEffect(() => {
+    const connection = new HubConnectionBuilder()
+      .withUrl("/hub/customer")
+      .withAutomaticReconnect()
+      .build();
+
+    connection
+      .start()
+      .then(() => console.log("SignalR connection started"))
+      .catch((err) => console.error("SignalR connection error: ", err));
+
+    connection.on(SignalREvents.CustomerCreated, () => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+    });
+
+    connection.on(SignalREvents.CustomerUpdated, () => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+    });
+
+    connection.on(SignalREvents.CustomerDeleted, () => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+    });
+
+    return () => {
+      connection.stop();
+    };
+  }, [queryClient]);
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(
     null
@@ -91,9 +119,11 @@ function CustomersComponent() {
     middleInitial: "",
   });
 
+
   const [isEditCustomerDialogOpen, setIsEditCustomerDialogOpen] =
     useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+
 
   const [isDeleteCustomerDialogOpen, setIsDeleteCustomerDialogOpen] =
     useState(false);
@@ -106,7 +136,9 @@ function CustomersComponent() {
     productId: string;
     salesPersonId: number | null;
     quantity: number;
-  }>({ productId: "", salesPersonId: null, quantity: 0 });
+  }>({ productId: "", salesPersonId: null, quantity: 1 }); // Default quantity to 1
+
+
 
   const customersQuery = useQuery(customersQueryOptions);
   const productsQuery = useQuery(productsQueryOptions);
@@ -158,7 +190,7 @@ function CustomersComponent() {
         queryKey: ["orders", selectedCustomerId],
       });
       setIsCreateOrderDialogOpen(false);
-      setNewOrder({ productId: "", salesPersonId: null, quantity: 0 });
+      setNewOrder({ productId: "", salesPersonId: null, quantity: 1 });
       toast.success("Order created successfully");
     },
   });
@@ -173,6 +205,10 @@ function CustomersComponent() {
   });
 
   const orders = ordersQuery.data ?? [];
+
+  const selectedCustomer = customers.find(
+    (customer) => customer.customerId === selectedCustomerId
+  );
 
   const customerColumns: ColumnDef<Customer>[] = [
     {
@@ -222,7 +258,7 @@ function CustomersComponent() {
       cell: ({ row }) => {
         const customer = row.original;
         return (
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-4">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Pencil
@@ -257,61 +293,85 @@ function CustomersComponent() {
     },
   ];
 
-  const orderColumns: ColumnDef<Order>[] = [
+  interface OrderRowLite {
+    orderId: string;
+    productName: string;
+    salesPerson: string;
+    price: number;
+    quantity: number;
+    total: number;
+  }
+  const orderColumns: ColumnDef<OrderRowLite>[] = [
     {
-      accessorKey: "orderId",
-      header: "Order ID",
+      accessorKey: "productName",
+      header: "Product",
     },
     {
-      accessorKey: "productId",
-      header: "Product ID",
+      accessorKey: "salesPerson",
+      header: "Sales Person",
     },
     {
-      accessorKey: "customerId",
-      header: "Customer ID",
-    },
-    {
-      accessorKey: "salesPersonId",
-      header: "Sales Person ID",
+      accessorKey: "price",
+      header: "Price",
+      cell: ({ cell }) => {
+        const amount = parseFloat(cell.getValue() as string);
+        const formatted = new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "USD",
+        }).format(amount);
+        return <div>{formatted}</div>;
+      },
     },
     {
       accessorKey: "quantity",
       header: "Quantity",
+      cell: ({ cell }) => (
+        <div className="text-center">{cell.getValue() as string}</div>
+      ),
+    },
+    {
+      accessorKey: "total",
+      header: "Amount",
+      cell: ({ cell }) => {
+        const amount = parseFloat(cell.getValue() as string);
+        const formatted = new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "USD",
+        }).format(amount);
+        return <div>{formatted}</div>;
+      },
     },
   ];
 
-  useEffect(() => {
-    if (ordersQuery.isFetching) {
-      let cancelled = false;
+  const orderData: OrderRowLite[] = orders.map((order) => {
+    const product = products.find((p) => p.productId === order.productId);
+    const employee = employees.find(
+      (e) => e.employeeId === order.salesPersonId
+    );
 
-      const animateProgress = async () => {
-        const steps = Array.from({ length: 19 }, (_, i) => (i + 1) * 5);
-        for (const progress of steps) {
-          if (cancelled) break;
-          setLoadingProgress(progress);
-          await new Promise((resolve) => setTimeout(resolve, 50));
-        }
-      };
+    const price = product?.price ?? 0;
+    const quantity = order.quantity;
+    const total = price * quantity;
 
-      animateProgress();
-
-      return () => {
-        cancelled = true;
-        setLoadingProgress(0);
-      };
-    } else if (ordersQuery.isSuccess) {
-      setLoadingProgress(100);
-    }
-  }, [ordersQuery.isFetching, ordersQuery.isSuccess]);
+    return {
+      orderId: order.orderId,
+      productName: product?.name ?? "",
+      salesPerson: employee ? `${employee.firstName} ${employee.lastName}` : "",
+      price: price,
+      quantity: quantity,
+      total: total,
+    };
+  });
 
   const handleCreateCustomer = () => {
     createCustomerMutation.mutate(newCustomer);
   };
 
   const handleUpdateCustomer = () => {
-    if (editingCustomer) {
-      updateCustomerMutation.mutate(editingCustomer);
+    if (!editingCustomer) {
+      return;
     }
+    updateCustomerMutation.mutate(editingCustomer);
   };
 
   const handleDeleteCustomer = () => {
@@ -321,15 +381,23 @@ function CustomersComponent() {
   };
 
   const handleCreateOrder = () => {
-    if (selectedCustomerId && newOrder.productId && newOrder.salesPersonId) {
-      const orderToCreate = {
-        productId: newOrder.productId,
-        customerId: selectedCustomerId,
-        salesPersonId: newOrder.salesPersonId,
-        quantity: newOrder.quantity,
-      };
-      createOrderMutation.mutate(orderToCreate);
+    if (!selectedCustomerId) {
+      toast.error("Please select a customer first.");
+      return;
     }
+
+    if (!newOrder.salesPersonId) {
+      toast.error("Please select a sales person.");
+      return;
+    }
+
+    const orderToCreate = {
+      productId: newOrder.productId,
+      customerId: selectedCustomerId,
+      salesPersonId: newOrder.salesPersonId as number,
+      quantity: newOrder.quantity,
+    };
+    createOrderMutation.mutate(orderToCreate);
   };
 
   return (
@@ -357,25 +425,19 @@ function CustomersComponent() {
             <ResizablePanel defaultSize={50}>
               <div className="p-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h1 className="text-2xl font-bold">Customer Orders</h1>
+                  <h1 className="text-2xl font-bold">
+                    Customer Orders for {selectedCustomer?.firstName}{" "}
+                    {selectedCustomer?.lastName}
+                  </h1>
                   <Button onClick={() => setIsCreateOrderDialogOpen(true)}>
                     <span>Create Order</span> <Plus size={18} />
                   </Button>
                 </div>
-                {ordersQuery.isLoading || ordersQuery.isFetching ? (
-                  <div className="space-y-4">
-                    <Progress value={loadingProgress} />
-                    <p className="text-sm text-muted-foreground text-center">
-                      Loading orders... {loadingProgress}%
-                    </p>
-                  </div>
-                ) : (
-                  <DataTable
-                    data={orders}
-                    columns={orderColumns}
-                    filter="orderId"
-                  />
-                )}
+                <DataTable
+                  data={orderData}
+                  columns={orderColumns}
+                  filter="orderId"
+                />
               </div>
             </ResizablePanel>
           </>
@@ -618,13 +680,15 @@ function CustomersComponent() {
               <Input
                 id="quantity"
                 type="number"
+                min="1"
                 value={newOrder.quantity}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const value = parseInt(e.target.value);
                   setNewOrder({
                     ...newOrder,
-                    quantity: parseInt(e.target.value),
-                  })
-                }
+                    quantity: value,
+                  });
+                }}
                 className="col-span-3"
               />
             </div>
@@ -636,7 +700,9 @@ function CustomersComponent() {
             >
               Cancel
             </Button>
-            <Button onClick={handleCreateOrder}>Save</Button>
+            <Button onClick={handleCreateOrder}>
+              Save
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
